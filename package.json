@@ -1,0 +1,46 @@
+{
+  "name": "mickyets-business-tracker",
+  "version": "1.0.0",
+  "description": "MICKYETS Business Tracker - income, expenses, inventory, sales, credit, savings, goals and reports",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "node server.js",
+    "electron": "electron .",
+    "dist": "electron-builder --publish=never"
+  },
+  "engines": {
+    "node": ">=14"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.mickyets.businesstracker",
+    "productName": "MICKYETS",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**/*",
+      "server.js",
+      "auth.js",
+      "gdrive.js",
+      "public/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": ["nsis"]
+    },
+    "mac": {
+      "target": ["dmg"],
+      "category": "public.app-category.business"
+    },
+    "linux": {
+      "target": ["AppImage"],
+      "category": "Office"
+    }
+  }
+}
+

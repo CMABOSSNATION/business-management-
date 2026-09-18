@@ -1,0 +1,72 @@
+name: Build Desktop App
+
+# Triggers:
+#  - any push to main — builds installers for Windows, macOS and Linux
+#    and uploads them as downloadable build artifacts (no release)
+#  - push a version tag (e.g. `git tag v1.0.0 && git push origin v1.0.0`) to
+#    do the same AND attach the installers to a GitHub Release automatically
+#  - or run manually from the Actions tab ("Run workflow") any time
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build installer (${{ matrix.os }})
+        run: npm run dist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mickyets-business-tracker-${{ matrix.os }}
+          path: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.AppImage
+            dist/*.zip
+          if-no-files-found: ignore
+
+  release:
+    # only runs when the workflow was triggered by a version tag push,
+    # after all three platform builds succeed
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release with installers attached
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

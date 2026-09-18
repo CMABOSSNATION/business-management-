@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MICKYETS</title>
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<div class="app">
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div class="brand-name">MICKYETS<span>Business Manager</span></div>
+    </div>
+
+    <nav class="nav">
+      <div class="nav-item active" data-view="dashboard">
+        <span class="ic">▣</span> Dashboard
+      </div>
+      <div class="nav-item" data-view="income">
+        <span class="ic">↑</span> Income
+      </div>
+      <div class="nav-item" data-view="expenses">
+        <span class="ic">↓</span> Expenses
+      </div>
+      <div class="nav-item" data-view="inventory">
+        <span class="ic">▦</span> Inventory
+      </div>
+      <div class="nav-item" data-view="sales">
+        <span class="ic">$</span> Daily Sales
+      </div>
+      <div class="nav-item" data-view="credit">
+        <span class="ic">◈</span> Credit
+      </div>
+      <div class="nav-item" data-view="savings">
+        <span class="ic">◎</span> Savings
+      </div>
+      <div class="nav-item" data-view="goals">
+        <span class="ic">◆</span> Goals
+      </div>
+      <div class="nav-item" data-view="reports">
+        <span class="ic">▤</span> Reports
+      </div>
+    </nav>
+
+    <div class="sidebar-foot">
+      <div class="nav-item" data-view="settings">
+        <span class="ic">⚙</span> Settings
+      </div>
+      <div class="nav-item" id="logoutBtn">
+        <span class="ic">⏻</span> Log Out
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main class="main">
+    <div class="topbar">
+      <button class="hamburger-btn" id="hamburgerBtn" aria-label="Open menu">☰</button>
+      <h1 id="pageTitle">Dashboard</h1>
+      <div class="search">
+        <span>⌕</span>
+        <input type="text" placeholder="Search entries..." id="globalSearch" />
+      </div>
+      <div class="icon-btn">🔔<span class="dot"></span></div>
+      <div class="avatar">RA</div>
+    </div>
+
+    <!-- ---------------- DASHBOARD ---------------- -->
+    <section class="content active" id="view-dashboard">
+      <div class="grid stat-row">
+        <div class="stat-card income">
+          <div class="label">Total Income This Month</div>
+          <div class="value" id="statIncome">UGX 0</div>
+          <div class="trend">↗ Trend</div>
+        </div>
+        <div class="stat-card expense">
+          <div class="label">Total Expenditure</div>
+          <div class="value" id="statExpense">UGX 0</div>
+          <div class="trend">↘ Trend</div>
+        </div>
+        <div class="stat-card balance">
+          <div class="label" style="color:var(--muted)">Net Balance</div>
+          <div class="value" id="statBalance">UGX 0</div>
+          <div class="trend" style="color:var(--muted)">Income – Expenditure</div>
+        </div>
+        <div class="stat-card growth">
+          <div class="label" style="color:var(--muted)">Savings Growth Rate</div>
+          <div class="value" id="statGrowth">+0%</div>
+          <div class="trend" style="color:var(--muted)">vs last month</div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel-head"><h3>Today's Money Flow</h3></div>
+        <div class="grid" style="grid-template-columns: 1.3fr 1fr 1fr;">
+          <div class="money-indicator" id="moneyInIndicator">
+            <span class="dotlg"></span>
+            <div>
+              <div style="font-weight:600;" id="moneyInText">No sales or income logged today</div>
+              <div style="font-size:11px;color:var(--muted-2);" id="moneyInSub">Log a sale or income entry to update this</div>
+            </div>
+          </div>
+          <div class="mini-stat" style="border-radius:var(--radius-sm);">
+            <div class="label">Today's sales total</div>
+            <div class="value" id="statTodaySales">UGX 0</div>
+          </div>
+          <div class="mini-stat" style="border-radius:var(--radius-sm);">
+            <div class="label">Outstanding credit</div>
+            <div class="value" id="statOutstandingCredit" style="color:var(--orange)">UGX 0</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid dash-row">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Income vs Expenditure Trend</h3>
+            <span class="more">View ⌄</span>
+          </div>
+          <div class="chart-box"><div class="svg-chart" id="trendChart"></div></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h3>Savings Summary</h3></div>
+          <div class="rings-row">
+            <div class="ring-item"><div class="svg-chart" id="ringBusiness"></div><div class="ring-label">Business</div></div>
+            <div class="ring-item"><div class="svg-chart" id="ringHome"></div><div class="ring-label">Home</div></div>
+            <div class="ring-item"><div class="svg-chart" id="ringEmergency"></div><div class="ring-label">Emergency</div></div>
+          </div>
+          <div class="bucket-cards">
+            <div class="bucket-card business">
+              <div class="bname">Business</div>
+              <div class="btarget" id="bTargetBusiness">UGX 0</div>
+              <div class="bar-track"><div class="bar-fill" id="bBarBusiness" style="width:0%"></div></div>
+            </div>
+            <div class="bucket-card home">
+              <div class="bname">Home</div>
+              <div class="btarget" id="bTargetHome">UGX 0</div>
+              <div class="bar-track"><div class="bar-fill" id="bBarHome" style="width:0%"></div></div>
+            </div>
+            <div class="bucket-card emergency">
+              <div class="bname">Emergency</div>
+              <div class="btarget" id="bTargetEmergency">UGX 0</div>
+              <div class="bar-track"><div class="bar-fill" id="bBarEmergency" style="width:0%"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid dash-row-3">
+        <div class="panel">
+          <div class="panel-head"><h3>Income Streams</h3></div>
+          <div class="chart-box sm"><div class="svg-chart" id="incomeStreamsChart"></div></div>
+          <div class="legend-list" id="incomeStreamsLegend"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>Expenses by Category</h3></div>
+          <div class="chart-box sm"><div class="svg-chart" id="expenseCategoryChart"></div></div>
+          <div class="legend-list" id="expenseCategoryLegend"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>Monthly Spending Trend</h3></div>
+          <div class="chart-box sm"><div class="svg-chart" id="weeklySpendChart"></div></div>
+        </div>
+      </div>
+
+      <div class="grid" style="grid-template-columns: 1fr; margin-top:16px;">
+        <div class="panel">
+          <div class="panel-head"><h3>Quick Actions</h3></div>
+          <div class="quick-actions" style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:16px;">
+            <div class="qa-block">
+              <div class="qa-title">Add Income Entry</div>
+              <form class="qa-form" id="qaIncomeForm">
+                <div class="field"><label>Source</label>
+                  <select name="source" id="qaIncomeSource"></select>
+                </div>
+                <div class="field"><label>Amount (UGX)</label><input type="number" name="amount" required /></div>
+                <button class="btn primary block" type="submit">Add Income</button>
+              </form>
+            </div>
+            <div class="qa-block">
+              <div class="qa-title">Add Expense</div>
+              <form class="qa-form" id="qaExpenseForm">
+                <div class="field"><label>Category</label>
+                  <select name="category" id="qaExpenseCategory"></select>
+                </div>
+                <div class="field"><label>Amount (UGX)</label><input type="number" name="amount" required /></div>
+                <button class="btn primary block" type="submit">Add Expense</button>
+              </form>
+            </div>
+            <div class="qa-block">
+              <div class="qa-title">Financial Goals</div>
+              <div class="scrollbox" id="qaGoalsList" style="max-height:150px;">
+                <div class="empty-state">No goals yet</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------- INCOME ---------------- -->
+    <section class="content" id="view-income">
+      <div class="page-head"><h2>Income</h2></div>
+      <div class="mini-stats">
+        <div class="mini-stat"><div class="label">Total income (all time)</div><div class="value" id="incTotalAll">UGX 0</div></div>
+        <div class="mini-stat"><div class="label">This month</div><div class="value" id="incTotalMonth">UGX 0</div></div>
+        <div class="mini-stat"><div class="label">Entries logged</div><div class="value" id="incCount">0</div></div>
+      </div>
+      <div class="page-layout">
+        <div class="panel">
+          <div class="panel-head"><h3>Add Income Entry</h3></div>
+          <form class="qa-form" id="incomeForm">
+            <div class="field"><label>Source</label><select name="source" id="incomeSourceSelect"></select></div>
+            <div class="field"><label>Amount (UGX)</label><input type="number" name="amount" required /></div>
+            <div class="field"><label>Date</label><input type="date" name="date" /></div>
+            <div class="field"><label>Note</label><textarea name="note" placeholder="Optional note"></textarea></div>
+            <button class="btn primary block" type="submit">Add Income</button>
+          </form>
+          <div class="panel-head" style="margin-top:18px;"><h3>By Source</h3></div>
+          <div class="chart-box sm"><div class="svg-chart" id="incomeBySourceChart"></div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>Income History</h3></div>
+          <div class="scrollbox">
+            <table>
+              <thead><tr><th>Date</th><th>Source</th><th>Note</th><th style="text-align:right">Amount</th><th></th></tr></thead>
+              <tbody id="incomeTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------- EXPENSES ---------------- -->
+    <section class="content" id="view-expenses">
+      <div class="page-head"><h2>Expenses</h2></div>
+      <div class="mini-stats">
+        <div class="mini-stat"><div class="label">Total spent (all time)</div><div class="value" id="expTotalAll">UGX 0</div></div>
+        <div class="mini-stat"><div class="label">This month</div><div class="value" id="expTotalMonth">UGX 0</div></div>
+        <div class="mini-stat"><div class="label">Top category</div><div class="value" id="expTopCat">—</div></div>
+      </div>
+      <div class="page-layout">
+        <div class="panel">
+          <div class="panel-head"><h3>Add Expense</h3></div>
+          <form class="qa-form" id="expenseForm">
+            <div class="field"><label>Category</label><select name="category" id="expenseCategorySelect"></select></div>
+            <div class="field"><label>Amount (UGX)</label><input type="number" name="amount" required /></div>
+            <div class="field"><label>Date</label><input type="date" name="date" /></div>
+            <div class="field"><label>Note</label><textarea name="note" placeholder="Optional note"></textarea></div>
+            <button class="btn primary block" type="submit">Add Expense</button>
+          </form>
+          <div class="panel-head" style="margin-top:18px;"><h3>By Category</h3></div>
+          <div class="chart-box sm"><div class="svg-chart" id="expenseByCatChart"></div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>Expense History</h3></div>
+          <div class="scrollbox">
+            <table>
+              <thead><tr><th>Date</th><th>Category</th><th>Note</th><th style="text-align:right">Amount</th><th></th></tr></thead>
+              <tbody id="expenseTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------- INVENTORY ---------------- -->
+    <section class="content" id="view-inventory">
+      <div class="page-head"><h2>Inventory</h2></div>
+      <div class="mini-stats">
+        <div class="mini-stat"><div class="label">Items tracked</div><div class="value" id="invCount">0</div></div>
+        <div class="mini-stat"><div class="label">Stock value (at cost)</div><div class="value" id="invValue">UGX 0</div></div>
+        <div class="mini-stat"><div class="label">Low stock items</div><div class="value" id="invLowCount">0</div></div>
+      </div>
+      <div class="page-layout">
+        <div class="panel">
+          <div class="panel-head"><h3>Add Item</h3></div>
+          <form class="qa-form" id="inventoryForm">
+            <div class="field"><label>Item name</label><input type="text" name="name" required placeholder="e.g. A4 Ream" /></div>
+            <div class="field"><label>Starting quantity</label><input type="number" name="quantity" value="0" /></div>
+            <div class="field"><label>Unit cost (UGX)</label><input type="number" name="unitCost" placeholder="What you pay per unit" /></div>
+            <div class="field"><label>Selling price (UGX)</label><input type="number" name="sellingPrice" placeholder="What you charge per unit" /></div>
+            <div class="field"><label>Reorder level</label><input type="number" name="reorderLevel" value="0" placeholder="Alert when stock falls below this" /></div>
+            <button class="btn primary block" type="submit">Add Item</button>
+          </form>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>Stock List</h3></div>
+          <div class="scrollbox">
+            <table>
+              <thead><tr><th>Item</th><th>Qty</th><th>Cost</th><th>Sell Price</th><th>Status</th><th></th></tr></thead>
+              <tbody id="inventoryTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------- DAILY SALES ---------------- -->
+    <section class="content" id="view-sales">
+      <div class="page-head"><h2>Daily Sales</h2></div>
+      <div class="mini-stats">
+        <div class="mini-stat"><div class="label">Today's sales</div><div class="value" id="salesTodayTotal">UGX 0</div></div>
+        <div class="mini-stat"><div class="label">This month</div><div class="value" id="salesMonthTotal">UGX 0</div></div>
+        <div class="mini-stat"><div class="label">Sales logged</div><div class="value" id="salesCount">0</div></div>
+      </div>
+      <div class="page-layout">
+        <div class="panel">
+          <div class="panel-head"><h3>Record a Sale</h3></div>
+          <form class="qa-form" id="salesForm">
+            <div class="field"><label>Item (optional — links to Inventory)</label>
+              <select name="itemId" id="salesItemSelect"><option value="">— not from inventory —</option></select>
+            </div>
+            <div class="field"><label>Item name</label><input type="text" name="itemName" id="salesItemNameInput" placeholder="e.g. Printing job" /></div>
+            <div class="field"><label>Quantity</label><input type="number" name="quantity" value="1" /></div>
+            <div class="field"><label>Amount received (UGX)</label><input type="number" name="amount" required /></div>
+            <div class="field"><label>Date</label><input type="date" name="date" /></div>
+            <div class="field"><label>Note</label><textarea name="note" placeholder="Optional note"></textarea></div>
+            <button class="btn primary block" type="submit">Record Sale</button>
+          </form>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>Sales Log</h3></div>
+          <div class="scrollbox">
+            <table>
+              <thead><tr><th>Date</th><th>Item</th><th>Qty</th><th style="text-align:right">Amount</th><th></th></tr></thead>
+              <tbody id="salesTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------- CREDIT / CUSTOMERS ---------------- -->
+    <section class="content" id="view-credit">
+      <div class="page-head"><h2>Credit</h2></div>
+      <div class="mini-stats">
+        <div class="mini-stat"><div class="label">Outstanding (owed to you)</div><div class="value" id="creditOutstanding" style="color:var(--orange)">UGX 0</div></div>
+        <div class="mini-stat"><div class="label">Customers on record</div><div class="value" id="customerCount">0</div></div>
+        <div class="mini-stat"><div class="label">Overdue accounts</div><div class="value" id="creditOverdue" style="color:var(--red)">0</div></div>
+      </div>
+      <div class="page-layout">
+        <div class="panel">
+          <div class="panel-head"><h3>Add Customer</h3></div>
+          <form class="qa-form" id="customerForm" style="margin-bottom:18px;">
+            <div class="field"><label>Name</label><input type="text" name="name" required placeholder="Customer name" /></div>
+            <div class="field"><label>Phone</label><input type="text" name="phone" placeholder="Optional" /></div>
+            <button class="btn ghost block" type="submit">Add Customer</button>
+          </form>
+
+          <div class="panel-head"><h3>Record Credit Given</h3></div>
+          <form class="qa-form" id="creditForm">
+            <div class="field"><label>Customer</label>
+              <select name="customerId" id="creditCustomerSelect"><option value="">— walk-in / not saved —</option></select>
+            </div>
+            <div class="field"><label>Customer name (if not on list)</label><input type="text" name="customerName" placeholder="e.g. Peter, the shop next door" /></div>
+            <div class="field"><label>Business</label>
+              <select name="source" id="creditSourceSelect"></select>
+            </div>
+            <div class="field"><label>What was taken</label><input type="text" name="description" placeholder="e.g. 2 reams of paper / 1 week WiFi" /></div>
+            <div class="field"><label>Amount owed (UGX)</label><input type="number" name="amount" required /></div>
+            <div class="field"><label>Date given</label><input type="date" name="date" /></div>
+            <div class="field"><label>Due date</label><input type="date" name="dueDate" /></div>
+            <button class="btn primary block" type="submit">Record Credit</button>
+          </form>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>Credit Ledger</h3></div>
+          <div class="scrollbox">
+            <table>
+              <thead><tr><th>Customer</th><th>What</th><th>Given</th><th>Due</th><th style="text-align:right">Amount</th><th>Status</th><th></th></tr></thead>
+              <tbody id="creditTableBody"></tbody>
+            </table>
+          </div>
+          <div class="panel-head" style="margin-top:16px;"><h3>Customers</h3></div>
+          <div class="scrollbox" style="max-height:160px;">
+            <table>
+              <thead><tr><th>Name</th><th>Phone</th><th>Owes</th><th></th></tr></thead>
+              <tbody id="customerTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------- SAVINGS ---------------- -->
+    <section class="content" id="view-savings">
+      <div class="page-head"><h2>Savings</h2></div>
+      <div class="grid" style="grid-template-columns: 1fr 1fr 1fr;">
+        <div class="panel savings-bucket-panel" data-bucket="business">
+          <div class="panel-head"><h3>Business</h3></div>
+          <div class="value" style="font-size:20px;font-weight:700;" data-field="balance">UGX 0</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px;">Target: <span data-field="target">UGX 0</span></div>
+          <div class="progress-wide"><div class="fill" style="background:var(--teal)" data-field="bar"></div></div>
+          <div class="grid" style="grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:8px;">
+            <input type="number" placeholder="Amount" class="bucket-amount" />
+            <input type="text" placeholder="Note (optional)" class="bucket-note" />
+          </div>
+          <div class="grid" style="grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:8px;">
+            <button class="btn primary sm" data-action="deposit">Deposit</button>
+            <button class="btn ghost sm" data-action="withdraw">Withdraw</button>
+          </div>
+          <div class="field"><label>Set target</label>
+            <div style="display:flex; gap:6px;">
+              <input type="number" class="bucket-target-input" placeholder="Target amount" />
+              <button class="btn ghost sm" data-action="settarget">Set</button>
+            </div>
+          </div>
+          <div class="panel-head" style="margin-top:10px;"><h3 style="font-size:12px;">History</h3></div>
+          <div class="scrollbox" style="max-height:140px;" data-field="history"></div>
+        </div>
+
+        <div class="panel savings-bucket-panel" data-bucket="home">
+          <div class="panel-head"><h3>Home</h3></div>
+          <div class="value" style="font-size:20px;font-weight:700;" data-field="balance">UGX 0</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px;">Target: <span data-field="target">UGX 0</span></div>
+          <div class="progress-wide"><div class="fill" style="background:var(--blue)" data-field="bar"></div></div>
+          <div class="grid" style="grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:8px;">
+            <input type="number" placeholder="Amount" class="bucket-amount" />
+            <input type="text" placeholder="Note (optional)" class="bucket-note" />
+          </div>
+          <div class="grid" style="grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:8px;">
+            <button class="btn primary sm" data-action="deposit">Deposit</button>
+            <button class="btn ghost sm" data-action="withdraw">Withdraw</button>
+          </div>
+          <div class="field"><label>Set target</label>
+            <div style="display:flex; gap:6px;">
+              <input type="number" class="bucket-target-input" placeholder="Target amount" />
+              <button class="btn ghost sm" data-action="settarget">Set</button>
+            </div>
+          </div>
+          <div class="panel-head" style="margin-top:10px;"><h3 style="font-size:12px;">History</h3></div>
+          <div class="scrollbox" style="max-height:140px;" data-field="history"></div>
+        </div>
+
+        <div class="panel savings-bucket-panel" data-bucket="emergency">
+          <div class="panel-head"><h3>Emergency</h3></div>
+          <div class="value" style="font-size:20px;font-weight:700;" data-field="balance">UGX 0</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px;">Target: <span data-field="target">UGX 0</span></div>
+          <div class="progress-wide"><div class="fill" style="background:var(--orange)" data-field="bar"></div></div>
+          <div class="grid" style="grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:8px;">
+            <input type="number" placeholder="Amount" class="bucket-amount" />
+            <input type="text" placeholder="Note (optional)" class="bucket-note" />
+          </div>
+          <div class="grid" style="grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:8px;">
+            <button class="btn primary sm" data-action="deposit">Deposit</button>
+            <button class="btn ghost sm" data-action="withdraw">Withdraw</button>
+          </div>
+          <div class="field"><label>Set target</label>
+            <div style="display:flex; gap:6px;">
+              <input type="number" class="bucket-target-input" placeholder="Target amount" />
+              <button class="btn ghost sm" data-action="settarget">Set</button>
+            </div>
+          </div>
+          <div class="panel-head" style="margin-top:10px;"><h3 style="font-size:12px;">History</h3></div>
+          <div class="scrollbox" style="max-height:140px;" data-field="history"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------- GOALS ---------------- -->
+    <section class="content" id="view-goals">
+      <div class="page-head"><h2>Financial Goals</h2></div>
+      <div class="page-layout">
+        <div class="panel">
+          <div class="panel-head"><h3>New Goal</h3></div>
+          <form class="qa-form" id="goalForm">
+            <div class="field"><label>Title</label><input type="text" name="title" required placeholder="e.g. New laptop" /></div>
+            <div class="field"><label>Target amount (UGX)</label><input type="number" name="target" required /></div>
+            <div class="field"><label>Deadline</label><input type="date" name="deadline" /></div>
+            <div class="field"><label>Track progress from bucket</label>
+              <select name="linkedBucket">
+                <option value="">— none —</option>
+                <option value="business">Business</option>
+                <option value="home">Home</option>
+                <option value="emergency">Emergency</option>
+              </select>
+            </div>
+            <button class="btn primary block" type="submit">Create Goal</button>
+          </form>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>All Goals</h3></div>
+          <div id="goalsFullList"><div class="empty-state">No goals yet — create one to start tracking.</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------- REPORTS ---------------- -->
+    <section class="content" id="view-reports">
+      <div class="page-head">
+        <h2>Reports</h2>
+        <button class="btn ghost" id="printReportBtn">Print / Share</button>
+      </div>
+      <div class="mini-stats">
+        <div class="mini-stat"><div class="label">Best income month</div><div class="value" id="repBestIncome">—</div></div>
+        <div class="mini-stat"><div class="label">Worst expense month</div><div class="value" id="repWorstExpense">—</div></div>
+        <div class="mini-stat"><div class="label">Net position (all time)</div><div class="value" id="repNet">—</div></div>
+      </div>
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel-head"><h3>Monthly Summary</h3></div>
+        <div class="chart-box"><div class="svg-chart" id="reportMonthlyChart"></div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>Savings Growth Over Time</h3></div>
+        <table>
+          <thead><tr><th>Bucket</th><th>Balance</th><th>Target</th><th>Progress</th></tr></thead>
+          <tbody id="repSavingsBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ---------------- SETTINGS ---------------- -->
+    <section class="content" id="view-settings">
+      <div class="page-head"><h2>Settings</h2></div>
+
+      <div class="page-layout">
+        <div class="panel">
+          <div class="panel-head"><h3>Backup to Phone Storage (USB-accessible)</h3></div>
+          <p style="color:var(--muted); font-size:12px; line-height:1.6; margin-top:0;">
+            Saves a copy of your data into a <code>MICKYETS-Backups</code> folder on the phone's shared storage —
+            the same storage a PC sees when you plug the phone in over USB. First time only: run
+            <code>termux-setup-storage</code> in Termux and allow the permission.
+          </p>
+          <button class="btn primary block" id="usbBackupBtn" style="margin-bottom:8px;">Save Backup to Phone Storage</button>
+          <button class="btn ghost block" id="downloadBackupBtn" style="margin-bottom:14px;">Download Backup File (.json)</button>
+          <div id="usbBackupStatus" style="font-size:12px; color:var(--muted-2); min-height:16px;"></div>
+
+          <div class="panel-head" style="margin-top:16px;"><h3>Restore</h3></div>
+          <div class="field" style="margin-bottom:8px;">
+            <label>Restore from a backup file on this phone</label>
+            <input type="file" id="restoreFileInput" accept="application/json" />
+          </div>
+          <button class="btn danger block" id="restoreFileBtn" style="margin-bottom:14px;">Restore from Selected File</button>
+
+          <div class="field"><label>Or restore the most recent phone-storage backup</label>
+            <select id="usbBackupList"><option value="">— none found —</option></select>
+          </div>
+          <button class="btn danger block" id="usbRestoreBtn">Restore from Phone Storage</button>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h3>Google Drive Backup</h3></div>
+          <div id="gdriveNotConfigured">
+            <p style="color:var(--muted); font-size:12px; line-height:1.6; margin-top:0;">
+              One-time setup: create a free OAuth Client ID at
+              <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:var(--blue);">console.cloud.google.com/apis/credentials</a>
+              → Create Credentials → OAuth client ID → Application type: <strong>TV and Limited Input devices</strong>.
+              Paste the Client ID and Client Secret it gives you below.
+            </p>
+            <form class="qa-form" id="gdriveConfigForm">
+              <div class="field"><label>Client ID</label><input type="text" name="clientId" required placeholder="xxxx.apps.googleusercontent.com" /></div>
+              <div class="field"><label>Client Secret</label><input type="text" name="clientSecret" required placeholder="GOCSPX-..." /></div>
+              <button class="btn primary block" type="submit">Save</button>
+            </form>
+          </div>
+
+          <div id="gdriveConfigured" style="display:none;">
+            <div id="gdriveDisconnected">
+              <p style="color:var(--muted); font-size:12px; margin-top:0;">Client ID saved. Now connect your Google account:</p>
+              <button class="btn primary block" id="gdriveConnectBtn">Connect to Google Drive</button>
+              <div id="gdriveAuthBox" style="display:none; margin-top:12px; padding:12px; background:var(--panel-alt); border-radius:10px;">
+                <div style="font-size:12px; color:var(--muted);">Open this link on any device:</div>
+                <div style="margin:6px 0;"><a id="gdriveAuthLink" href="#" target="_blank" style="color:var(--blue); word-break:break-all;"></a></div>
+                <div style="font-size:12px; color:var(--muted);">Enter this code when asked:</div>
+                <div style="font-size:20px; font-weight:700; letter-spacing:2px; margin:4px 0 10px;" id="gdriveUserCode">—</div>
+                <button class="btn ghost block" id="gdriveCheckBtn">I've approved it — check now</button>
+                <div id="gdriveAuthStatus" style="font-size:12px; color:var(--muted-2); margin-top:8px;"></div>
+              </div>
+            </div>
+            <div id="gdriveConnected" style="display:none;">
+              <div class="money-indicator yes" style="margin-bottom:14px;">
+                <span class="dotlg"></span>
+                <div>
+                  <div style="font-weight:600;">Connected to Google Drive</div>
+                  <div style="font-size:11px;color:var(--muted-2);" id="gdriveLastBackup">No backup yet</div>
+                </div>
+              </div>
+              <button class="btn primary block" id="gdriveBackupBtn" style="margin-bottom:8px;">Backup Now</button>
+              <button class="btn danger block" id="gdriveRestoreBtn" style="margin-bottom:8px;">Restore from Google Drive</button>
+              <button class="btn ghost block" id="gdriveDisconnectBtn">Disconnect</button>
+              <div id="gdriveActionStatus" style="font-size:12px; color:var(--muted-2); margin-top:8px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:16px; max-width:400px;">
+        <div class="panel-head"><h3>Account</h3></div>
+        <p style="color:var(--muted); font-size:12px; margin-top:0;" id="accountUsernameLine">Signed in</p>
+        <form class="qa-form" id="changePasswordForm">
+          <div class="field"><label>Current password</label><input type="password" name="oldPassword" required /></div>
+          <div class="field"><label>New password</label><input type="password" name="newPassword" required minlength="6" /></div>
+          <button class="btn ghost block" type="submit">Change Password</button>
+        </form>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/js/app.js"></script>
+</body>
+</html>

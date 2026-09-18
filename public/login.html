@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MICKYETS — Sign in</title>
+<link rel="stylesheet" href="/css/style.css" />
+<style>
+  body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  .auth-card {
+    width: 100%; max-width: 360px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px 26px;
+    margin: 20px;
+  }
+  .auth-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
+  .auth-brand .brand-mark { width: 34px; height: 34px; border-radius: 9px; background: linear-gradient(135deg, var(--teal), var(--blue)); flex-shrink: 0; }
+  .auth-brand div div:first-child { font-weight: 700; font-size: 15px; }
+  .auth-brand div div:last-child { font-size: 11px; color: var(--muted); }
+  .auth-title { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+  .auth-sub { font-size: 12px; color: var(--muted); margin-bottom: 18px; line-height: 1.5; }
+  .auth-error { display:none; background: var(--red-soft); color: var(--red); border-radius: 8px; padding: 8px 12px; font-size: 12px; margin-bottom: 12px; }
+  .auth-toggle { text-align: center; margin-top: 14px; font-size: 12px; color: var(--muted); }
+  .auth-toggle a { color: var(--teal); cursor: pointer; }
+</style>
+</head>
+<body>
+  <div class="auth-card">
+    <div class="auth-brand">
+      <div class="brand-mark"></div>
+      <div><div>MICKYETS</div><div>Business Manager</div></div>
+    </div>
+
+    <div id="setupView" style="display:none;">
+      <div class="auth-title">Create your account</div>
+      <div class="auth-sub">This runs once — set the username and password used to open this business's data from now on.</div>
+      <div class="auth-error" id="setupError"></div>
+      <form class="qa-form" id="setupForm">
+        <div class="field"><label>Username</label><input type="text" name="username" required minlength="2" autocomplete="username" /></div>
+        <div class="field"><label>Password</label><input type="password" name="password" required minlength="6" autocomplete="new-password" /></div>
+        <div class="field"><label>Confirm password</label><input type="password" name="confirm" required minlength="6" /></div>
+        <button class="btn primary block" type="submit" style="margin-top:6px;">Create Account</button>
+      </form>
+    </div>
+
+    <div id="loginView" style="display:none;">
+      <div class="auth-title">Sign in</div>
+      <div class="auth-sub">Enter your username and password to open the dashboard.</div>
+      <div class="auth-error" id="loginError"></div>
+      <form class="qa-form" id="loginForm">
+        <div class="field"><label>Username</label><input type="text" name="username" required autocomplete="username" /></div>
+        <div class="field"><label>Password</label><input type="password" name="password" required autocomplete="current-password" /></div>
+        <button class="btn primary block" type="submit" style="margin-top:6px;">Sign In</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/login.js"></script>
+</body>
+</html>

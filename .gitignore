@@ -1,0 +1,15 @@
+# dependencies (installed fresh by GitHub Actions / by you on desktop)
+node_modules/
+
+# electron-builder output
+dist/
+
+# local business data and secrets — never commit these
+data.json
+data.json.bak
+auth.json
+gdrive-config.json
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
