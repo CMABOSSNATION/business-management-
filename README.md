@@ -72,6 +72,31 @@ the repo's **Actions** tab → **Build Desktop App** → **Run workflow**.
 That uploads the installers as build artifacts on that run's page
 instead of creating a Release.
 
+### How the desktop build actually works (no network involved)
+
+The Windows/Mac/Linux app does **not** open an HTTP port. Early attempts
+did, and on some Windows machines that failed — antivirus/firewall
+software intercepted the loopback traffic between the app window and its
+own embedded server, causing "the app's internal server did not respond"
+errors that no amount of retry logic could fix reliably.
+
+Instead, the desktop build registers a custom `app://` protocol and loads
+the UI straight from disk. Every `/api/...` call the frontend makes gets
+answered by calling `server.js`'s route logic **directly, in-process** —
+the exact same business logic Termux's real HTTP server uses, just
+invoked as a plain function call instead of over a socket. There is no
+port, so there is nothing for security software to see or block.
+
+Sessions use a token sent as an `X-Session-Token` header (stored in
+`localStorage`) instead of relying on cookies, since cookie behavior
+under custom protocols is inconsistent across Chromium versions — this
+also works fine over plain HTTP, so Termux/browser use the same
+mechanism (a cookie is set too, as a harmless fallback, but nothing
+depends on it working).
+
+None of this affects Termux: `node server.js` still opens a real port,
+because that's the only way a phone browser can reach it.
+
 ### Running the desktop app locally instead (if you ever do get a PC)
 
 ```bash

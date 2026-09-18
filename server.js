@@ -83,6 +83,16 @@ function sendJSON(res, status, obj) {
 }
 
 function parseBody(req, cb) {
+  // Electron's custom-protocol path hands us the body already buffered
+  // (no real socket to stream from) — handle that case directly.
+  if (req._bufferedBody !== undefined) {
+    try {
+      cb(null, req._bufferedBody ? JSON.parse(req._bufferedBody) : {});
+    } catch (e) {
+      cb(e);
+    }
+    return;
+  }
   let body = '';
   req.on('data', chunk => { body += chunk; });
   req.on('end', () => {
@@ -104,22 +114,8 @@ const MIME = {
   '.ico': 'image/x-icon'
 };
 
-function redirectTo(res, location) {
-  res.writeHead(302, { Location: location });
-  res.end();
-}
-
 function serveStatic(req, res, pathname) {
   const safePath = path.normalize(pathname).replace(/^(\.\.[/\\])+/, '');
-  const isPublicAsset = safePath.startsWith('/css/') || safePath.startsWith('/js/') || safePath === '/favicon.ico';
-
-  if (safePath === '/login.html') {
-    // already logged in? send them straight to the app instead
-    if (auth.hasAccount() && auth.requestIsAuthenticated(req)) return redirectTo(res, '/');
-  } else if (!isPublicAsset) {
-    // any app page requires an account to exist AND a valid session
-    if (!auth.hasAccount() || !auth.requestIsAuthenticated(req)) return redirectTo(res, '/login.html');
-  }
 
   let filePath = path.join(PUBLIC_DIR, safePath === '/' ? 'index.html' : safePath);
   if (!filePath.startsWith(PUBLIC_DIR)) {
@@ -127,7 +123,10 @@ function serveStatic(req, res, pathname) {
   }
   fs.readFile(filePath, (err, content) => {
     if (err) {
-      // SPA fallback -> index.html (still gated by the checks above)
+      // SPA fallback -> index.html. The auth gate itself lives client-side
+      // (app.js checks /api/auth/status on load and redirects if needed) —
+      // that works the same whether the page came over real HTTP (Termux)
+      // or Electron's custom protocol, so there's nothing to branch on here.
       fs.readFile(path.join(PUBLIC_DIR, 'index.html'), (err2, content2) => {
         if (err2) { res.writeHead(404); res.end('Not found'); return; }
         res.writeHead(200, { 'Content-Type': MIME['.html'] });
@@ -197,7 +196,11 @@ function buildReports(data) {
 }
 
 // ---------- router ----------
-const server = http.createServer((req, res) => {
+// Named so it can be reused both by the real http.createServer below
+// (Termux / `node server.js` directly) and, unchanged, by Electron's
+// custom-protocol handler (electron/main.js) via fake req/res objects —
+// same business logic, two different transports.
+function handleRequest(req, res) {
   const parsed = url.parse(req.url, true);
   const pathname = parsed.pathname;
 
@@ -220,7 +223,7 @@ const server = http.createServer((req, res) => {
             auth.createAccount((body.username || '').trim(), body.password || '');
             const session = auth.createSession();
             res.setHeader('Set-Cookie', auth.sessionCookieHeader(session.token, session.maxAgeSeconds));
-            return sendJSON(res, 201, { ok: true });
+            return sendJSON(res, 201, { ok: true, token: session.token });
           } catch (e) {
             return sendJSON(res, 400, { error: e.message });
           }
@@ -234,7 +237,7 @@ const server = http.createServer((req, res) => {
           }
           const session = auth.createSession();
           res.setHeader('Set-Cookie', auth.sessionCookieHeader(session.token, session.maxAgeSeconds));
-          return sendJSON(res, 200, { ok: true });
+          return sendJSON(res, 200, { ok: true, token: session.token });
         });
       }
       if (segs[2] === 'logout' && req.method === 'POST') {
@@ -656,40 +659,43 @@ const server = http.createServer((req, res) => {
   }
 
   serveStatic(req, res, pathname);
-});
+}
 
-const BASE_PORT = parseInt(process.env.PORT || '4173', 10);
-let _currentPort = BASE_PORT;
-const MAX_PORT_TRIES = 10;
+// The desktop (Electron) build never reaches this block — it requires this
+// file as a module and calls handleRequest(fakeReq, fakeRes) directly,
+// in-process, with no TCP port involved at all. Only `node server.js` run
+// directly (Termux, or `npm start`) gets here and opens a real port, which
+// is exactly what a phone browser needs to talk to it.
+if (require.main === module) {
+  const server = http.createServer(handleRequest);
 
-// On EADDRINUSE (port already taken by a leftover process), try the
-// next port automatically instead of hanging silently. Under Electron
-// there's no visible console so we can't just print and ask the user
-// to kill the old process — we have to self-heal.
-server.on('error', (err) => {
-  if (err.code === 'EADDRINUSE' && (_currentPort - BASE_PORT) < MAX_PORT_TRIES) {
-    _currentPort++;
-    console.warn('Port ' + (_currentPort - 1) + ' in use — trying ' + _currentPort);
-    setTimeout(() => server.listen(_currentPort, '127.0.0.1'), 100);
-  } else {
-    console.error('Server failed to start:', err);
-    if (!process.versions.electron) process.exit(1);
-  }
-});
+  const BASE_PORT = parseInt(process.env.PORT || '4173', 10);
+  let _currentPort = BASE_PORT;
+  const MAX_PORT_TRIES = 10;
 
-// Listen on 127.0.0.1 explicitly — on some Windows machines 'localhost'
-// resolves to ::1 (IPv6) while the server defaults to 0.0.0.0 (IPv4),
-// which causes "connection refused" even when the server is running.
-// Use server.on('listening') rather than the callback inside server.listen()
-// so this fires for EVERY successful bind — including retried ports.
-// The callback form only fires once for the initial call; if we retry
-// on port 4174 after an EADDRINUSE on 4173, the callback is gone and
-// process.MICKYETS_ACTUAL_PORT never gets set.
-server.on('listening', () => {
-  process.MICKYETS_ACTUAL_PORT = server.address().port;
-  console.log('=======================================');
-  console.log('  MICKYETS running on http://127.0.0.1:' + process.MICKYETS_ACTUAL_PORT);
-  console.log('=======================================');
-});
+  // On EADDRINUSE (port already taken by a leftover process), try the
+  // next port automatically instead of hanging silently.
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE' && (_currentPort - BASE_PORT) < MAX_PORT_TRIES) {
+      _currentPort++;
+      console.warn('Port ' + (_currentPort - 1) + ' in use — trying ' + _currentPort);
+      setTimeout(() => server.listen(_currentPort, '127.0.0.1'), 100);
+    } else {
+      console.error('Server failed to start:', err);
+      process.exit(1);
+    }
+  });
 
-server.listen(_currentPort, '127.0.0.1');
+  // Listen on 127.0.0.1 explicitly — on some machines 'localhost' resolves
+  // to ::1 (IPv6) while the server defaults to 0.0.0.0 (IPv4), which causes
+  // "connection refused" even when the server is running.
+  server.on('listening', () => {
+    console.log('=======================================');
+    console.log('  MICKYETS running on http://127.0.0.1:' + server.address().port);
+    console.log('=======================================');
+  });
+
+  server.listen(_currentPort, '127.0.0.1');
+}
+
+module.exports = { handleRequest };

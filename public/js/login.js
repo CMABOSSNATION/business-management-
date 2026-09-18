@@ -1,10 +1,18 @@
 (() => {
   'use strict';
 
+  const TOKEN_KEY = 'mickyets_session_token';
+  const getToken = () => { try { return localStorage.getItem(TOKEN_KEY); } catch (e) { return null; } };
+  const setToken = t => { try { localStorage.setItem(TOKEN_KEY, t); } catch (e) { /* ignore */ } };
+
   async function api(path, opts) {
-    const res = await fetch('/api' + path, Object.assign({ headers: { 'Content-Type': 'application/json' } }, opts));
+    const headers = Object.assign({ 'Content-Type': 'application/json' }, (opts && opts.headers) || {});
+    const token = getToken();
+    if (token) headers['X-Session-Token'] = token;
+    const res = await fetch('/api' + path, Object.assign({}, opts, { headers }));
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(body.error || 'Request failed');
+    if (body && body.token) setToken(body.token);
     return body;
   }
 
@@ -21,7 +29,7 @@
     let status;
     try { status = await api('/auth/status'); } catch (e) { status = { hasAccount: false, loggedIn: false }; }
 
-    if (status.loggedIn) { window.location.href = '/'; return; }
+    if (status.loggedIn) { window.location.href = 'index.html'; return; }
 
     if (status.hasAccount) {
       show('loginView');
@@ -40,7 +48,7 @@
     if (password !== confirm) return showError('setupError', 'Passwords do not match');
     try {
       await api('/auth/setup', { method: 'POST', body: JSON.stringify({ username, password }) });
-      window.location.href = '/';
+      window.location.href = 'index.html';
     } catch (err) { showError('setupError', err.message); }
   });
 
@@ -50,7 +58,7 @@
     const fd = new FormData(e.target);
     try {
       await api('/auth/login', { method: 'POST', body: JSON.stringify({ username: fd.get('username'), password: fd.get('password') }) });
-      window.location.href = '/';
+      window.location.href = 'index.html';
     } catch (err) { showError('loginError', err.message); }
   });
 })();

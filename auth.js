@@ -121,6 +121,12 @@ function clearCookieHeader() {
 }
 
 function getSessionToken(req) {
+  // Header first: this is what the Electron desktop build uses (a custom
+  // protocol has no reliable cookie jar), and it works over plain HTTP
+  // too, so Termux/browser sessions can use either. Cookie is the fallback
+  // for normal browser tabs that never send the header.
+  const headerToken = req.headers && (req.headers['x-session-token'] || req.headers['X-Session-Token']);
+  if (headerToken) return headerToken;
   return parseCookies(req)[COOKIE_NAME];
 }
 

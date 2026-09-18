@@ -17,6 +17,15 @@
 
   let STATE = { income: [], expenses: [], savings: {}, goals: [], inventory: [], sales: [], customers: [], credits: [], meta: {} };
 
+  // Session token: sent as a header on every API call. This is what makes
+  // login work identically whether the page is served over real HTTP
+  // (Termux/browser, where a cookie would also work) or from Electron's
+  // custom app:// protocol (where cookie-jar behavior can't be relied on).
+  const TOKEN_KEY = 'mickyets_session_token';
+  const getToken = () => { try { return localStorage.getItem(TOKEN_KEY); } catch (e) { return null; } };
+  const setToken = t => { try { localStorage.setItem(TOKEN_KEY, t); } catch (e) { /* ignore */ } };
+  const clearToken = () => { try { localStorage.removeItem(TOKEN_KEY); } catch (e) { /* ignore */ } };
+
   const fmt = n => 'UGX ' + Number(n || 0).toLocaleString('en-UG', { maximumFractionDigits: 0 });
   const todayStr = () => new Date().toISOString().slice(0, 10);
   const monthKey = d => (d || todayStr()).slice(0, 7);
@@ -32,18 +41,22 @@
   }
 
   async function api(path, opts) {
-    const res = await fetch('/api' + path, Object.assign({
-      headers: { 'Content-Type': 'application/json' }
-    }, opts));
+    const headers = Object.assign({ 'Content-Type': 'application/json' }, (opts && opts.headers) || {});
+    const token = getToken();
+    if (token) headers['X-Session-Token'] = token;
+    const res = await fetch('/api' + path, Object.assign({}, opts, { headers }));
     if (res.status === 401) {
-      window.location.href = '/login.html';
+      clearToken();
+      window.location.href = 'login.html';
       throw new Error('Not authenticated');
     }
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: 'Request failed' }));
       throw new Error(err.error || 'Request failed');
     }
-    return res.json();
+    const body = await res.json();
+    if (body && body.token) setToken(body.token);
+    return body;
   }
 
   async function loadAll() {
@@ -928,7 +941,8 @@
 
   document.getElementById('logoutBtn').addEventListener('click', async () => {
     try { await api('/auth/logout', { method: 'POST' }); } catch (e) { /* ignore */ }
-    window.location.href = '/login.html';
+    clearToken();
+    window.location.href = 'login.html';
   });
 
   document.getElementById('changePasswordForm').addEventListener('submit', async e => {
@@ -936,10 +950,24 @@
     const body = formData(e.target);
     try {
       await api('/auth/change-password', { method: 'POST', body: JSON.stringify(body) });
+      clearToken();
       toast('Password changed — please sign in again');
-      setTimeout(() => { window.location.href = '/login.html'; }, 1200);
+      setTimeout(() => { window.location.href = 'login.html'; }, 1200);
     } catch (err) { toast(err.message, true); }
   });
 
-  loadAll().catch(err => toast(err.message, true));
+  // The server no longer redirects unauthenticated page loads (that
+  // decision now lives here, client-side, since it works the same way
+  // whether the page came over real HTTP or Electron's custom protocol).
+  // Check first, before anything else touches the protected API.
+  (async () => {
+    try {
+      const s = await api('/auth/status');
+      if (!s.loggedIn) { window.location.href = 'login.html'; return; }
+    } catch (e) {
+      window.location.href = 'login.html';
+      return;
+    }
+    loadAll().catch(err => toast(err.message, true));
+  })();
 })();

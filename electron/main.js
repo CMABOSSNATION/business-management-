@@ -1,64 +1,116 @@
 /**
  * electron/main.js
- * Desktop wrapper around the same server.js used on Termux.
+ *
+ * Why this looks different from a typical "Electron wraps a local server"
+ * setup: the previous version ran a real TCP server on 127.0.0.1 and had
+ * the browser window fetch from it. On some Windows machines, security
+ * software intercepts exactly that kind of traffic — even pure loopback —
+ * because a Chromium-based renderer making HTTP calls looks identical to
+ * a real browser tab to that software, and it hangs or blocks it. That's
+ * what caused "the app's internal server did not respond".
+ *
+ * The fix: don't open a network port at all on desktop. A custom `app://`
+ * protocol serves the UI straight from disk, and every `/api/...` fetch()
+ * the frontend makes is intercepted by that same protocol handler and
+ * answered by calling server.js's route logic directly, in-process — the
+ * exact same code that runs Termux's real HTTP server, just invoked as a
+ * plain function call instead of over a socket. Nothing for a firewall or
+ * antivirus product to see or block, because there's no network traffic.
+ *
+ * Termux is unaffected by any of this: `node server.js` still opens a
+ * real HTTP server, because that's the only way a phone browser can reach
+ * it. See the `require.main === module` guard at the bottom of server.js.
  */
-const { app, BrowserWindow, Menu, shell, dialog } = require('electron');
-const path = require('path');
-const fs   = require('fs');
+const { app, BrowserWindow, protocol, shell } = require('electron');
+const fs = require('fs');
 
-// ── Single-instance lock ──────────────────────────────────────────────────────
-// Without this, double-clicking the icon (or clicking it while it's still
-// starting) opens a second copy of the app.  The second copy tries to bind
-// port 4173, gets EADDRINUSE, and both copies hang.  The lock means every
-// extra click just focuses the already-running window instead.
+// ── Single-instance lock ─────────────────────────────────────────────────
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
-  // Another instance is already running — let it handle things and exit.
   app.quit();
 }
 
-// ── GPU / rendering ───────────────────────────────────────────────────────────
-// Prevents a blank-black window on older GPUs / VMs / remote-desktop sessions.
+// ── GPU / rendering safety net ───────────────────────────────────────────
+// Avoids a blank window on some older GPUs / VMs / remote-desktop sessions.
 app.disableHardwareAcceleration();
 
-// ── Port & data directory ─────────────────────────────────────────────────────
-const PORT = parseInt(process.env.MICKYETS_PORT || '4173', 10);
-process.env.PORT = String(PORT);
-
-// app.getPath('userData') is safe before ready on all current Electron
-// versions, but the *directory* may not exist yet on a fresh install.
-// We create it here so the server can write its data files immediately.
+// ── Writable data directory ──────────────────────────────────────────────
+// A packaged app's own install folder isn't reliably writable (and may be
+// read-only entirely if asar-packed). Electron's userData path always is.
 const userDataDir = app.getPath('userData');
-try { fs.mkdirSync(userDataDir, { recursive: true }); } catch (_) {}
+try { fs.mkdirSync(userDataDir, { recursive: true }); } catch (_) { /* already exists */ }
 process.env.MICKYETS_DATA_DIR = userDataDir;
 
-// ── Start the internal server ─────────────────────────────────────────────────
-let serverStartError = null;
-try {
-  require('../server.js');
-} catch (e) {
-  serverStartError = e;
+// server.js only starts a real TCP listener when run directly (Termux).
+// Required as a module like this, it just gives us `handleRequest` to
+// call ourselves — no port is ever opened here.
+const { handleRequest } = require('../server.js');
+
+// ── Custom protocol registration (must happen before app is ready) ──────
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'app',
+    privileges: {
+      standard: true,        // gives it normal URL-resolution behaviour, so
+                              // root-relative paths like "/css/style.css"
+                              // resolve against app://mickyets correctly
+      secure: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+      bypassCSP: true
+    }
+  }
+]);
+
+// ── Adapter: turns a Fetch API Request into the same (req, res) shape
+//    server.js's handleRequest already expects from Node's http module ──
+async function callServerInProcess(request) {
+  const u = new URL(request.url);
+  const headers = {};
+  for (const [key, value] of request.headers) headers[key.toLowerCase()] = value;
+
+  let bodyText;
+  if (request.method !== 'GET' && request.method !== 'HEAD') {
+    try { bodyText = await request.text(); } catch (_) { bodyText = ''; }
+  }
+
+  const fakeReq = {
+    method: request.method,
+    url: u.pathname + u.search,
+    headers,
+    _bufferedBody: bodyText
+  };
+
+  return new Promise((resolve) => {
+    const fakeRes = {
+      _headers: {},
+      _status: 200,
+      setHeader(name, val) { this._headers[name] = val; },
+      writeHead(status, hdrs) { this._status = status; if (hdrs) Object.assign(this._headers, hdrs); },
+      end(body) {
+        resolve({ status: this._status, headers: this._headers, body: body === undefined ? '' : body });
+      }
+    };
+    handleRequest(fakeReq, fakeRes);
+  });
 }
 
-// ── Window ────────────────────────────────────────────────────────────────────
-let mainWindow;
+function protocolResponse(result) {
+  const headers = new Headers();
+  for (const [key, value] of Object.entries(result.headers)) {
+    // Content-Length is computed automatically for us; skip forwarding it
+    // to avoid a mismatch, and Set-Cookie is harmless to include but not
+    // relied on — the app authenticates via an X-Session-Token header
+    // stored client-side instead, since custom-protocol cookie handling
+    // is inconsistent across Chromium versions.
+    if (key.toLowerCase() === 'content-length') continue;
+    headers.set(key, value);
+  }
+  const body = typeof result.body === 'string' ? result.body : result.body;
+  return new Response(body, { status: result.status, headers });
+}
 
-// Loading page shown immediately so the user knows the app is starting.
-// Without this, show:false + a slow server = user sees nothing and clicks again.
-const LOADING_HTML = `data:text/html,
-<!DOCTYPE html><html>
-<head><meta charset="utf-8">
-<style>
-  body{margin:0;background:#0f1115;display:flex;flex-direction:column;
-       align-items:center;justify-content:center;height:100vh;
-       font-family:'Segoe UI',Arial,sans-serif;color:#c9f7d9;}
-  .ring{width:48px;height:48px;border:4px solid #1a4a2e;
-        border-top-color:#3ef07a;border-radius:50%;
-        animation:spin 0.9s linear infinite;margin-bottom:24px;}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  p{font-size:14px;opacity:0.7;letter-spacing:1px;}
-</style></head>
-<body><div class="ring"></div><p>STARTING MICKYETS…</p></body></html>`;
+let mainWindow;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -68,90 +120,34 @@ function createWindow() {
     minHeight: 600,
     backgroundColor: '#0f1115',
     autoHideMenuBar: true,
-    show: true, // show immediately with the loading page — no hidden wait
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false
     }
   });
 
-  // Show the spinner loading page right away so the user sees something.
-  mainWindow.loadURL(LOADING_HTML);
+  mainWindow.loadURL('app://mickyets/');
 
-  // If the renderer dies (low-memory / old GPU), reload instead of blank.
-  mainWindow.webContents.on('render-process-gone', (_event, details) => {
-    const usePort = process.MICKYETS_ACTUAL_PORT || PORT;
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.loadURL('http://127.0.0.1:' + usePort);
-    }
-  });
-
-  // Open target="_blank" links in the OS browser, not a new Electron window.
+  // Open target="_blank" links (Google Drive setup link, the device-auth
+  // verification link) in the OS browser, not a new Electron window.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: 'deny' };
   });
-
-  startRetrying();
 }
 
-// ── Retry loop ────────────────────────────────────────────────────────────────
-// Polls until the server responds, then swaps the loading page for the real app.
-// 120 retries × 500 ms = 60 seconds — generous enough for Windows Defender to
-// finish scanning the new executable on first run.
-const MAX_RETRIES = 120;
-let retriesLeft  = MAX_RETRIES;
-
-function startRetrying() {
-  retriesLeft = MAX_RETRIES;
-  tryLoad();
-}
-
-function tryLoad() {
-  if (!mainWindow || mainWindow.isDestroyed()) return;
-
-  const usePort = process.MICKYETS_ACTUAL_PORT || PORT;
-  const url     = 'http://127.0.0.1:' + usePort;
-
-  mainWindow.loadURL(url).then(() => {
-    // Success: the loading page is replaced by the real app.
-    // Nothing else to do.
-  }).catch(() => {
-    if (retriesLeft > 0) {
-      retriesLeft--;
-      setTimeout(tryLoad, 500);
-    } else {
-      dialog.showErrorBox(
-        'MICKYETS could not start',
-        'The app\'s internal server did not respond after 60 seconds.\n\n' +
-        'Things to try:\n' +
-        '• Check Task Manager for a leftover MICKYETS or electron.exe process and end it\n' +
-        '• Temporarily disable antivirus / Windows Defender real-time protection and retry\n' +
-        '• Run the app as Administrator once\n\n' +
-        'If it keeps happening, contact support.'
-      );
+app.whenReady().then(() => {
+  protocol.handle('app', async (request) => {
+    try {
+      const result = await callServerInProcess(request);
+      return protocolResponse(result);
+    } catch (e) {
+      return new Response('Internal error: ' + e.message, { status: 500 });
     }
   });
-}
-
-// ── App lifecycle ─────────────────────────────────────────────────────────────
-app.whenReady().then(() => {
-  Menu.setApplicationMenu(null);
-
-  if (serverStartError) {
-    dialog.showErrorBox(
-      'MICKYETS could not start',
-      'The internal server failed to initialise:\n\n' +
-      serverStartError.message +
-      '\n\nPlease reinstall the app. If this keeps happening, contact support.'
-    );
-    app.quit();
-    return;
-  }
 
   createWindow();
 
-  // Focus the existing window if a second instance tries to open.
   app.on('second-instance', () => {
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();
